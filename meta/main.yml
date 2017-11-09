@@ -1,0 +1,21 @@
+galaxy_info:
+  author: Ivan Tuzhilkin
+  description: Ansible role to perform security hardening tasks
+  license: Apache License 2.0
+  min_ansible_version: '2.3.0'
+
+  platforms:
+    - name: Ubuntu
+      versions:
+        - trusty
+        - xenial
+    - name: Debian
+      versions:
+        - jessie
+        - stretch
+
+  galaxy_tags:
+    - system
+    - security
+
+dependencies: []
