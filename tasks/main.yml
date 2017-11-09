@@ -1,33 +1,33 @@
 ---
-- include: common.yml
+- include_tasks: common.yml
   tags:
     - common
     - system
 
-- include: sysctl.yml
+- include_tasks: sysctl.yml
   tags:
     - common
     - system
 
-- include: pam.yml
+- include_tasks: pam.yml
   when: ansible_os_family == 'Debian' and security_pam_restrictions == True
   tags:
     - common
     - pam
 
-- include: knock.yml
+- include_tasks: knock.yml
   when: ansible_os_family == 'Debian'
   tags:
     - common
     - knockd
 
-- include: ssh.yml
+- include_tasks: ssh.yml
   when: ansible_os_family == 'Debian'
   tags:
     - common
     - ssh
 
-- include: cron-apt.yml
+- include_tasks: cron-apt.yml
   when: ansible_os_family == 'Debian'
   tags:
     - common
