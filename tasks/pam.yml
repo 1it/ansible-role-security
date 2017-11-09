@@ -1,0 +1,12 @@
+---
+- name: PAM | Install libpam-cracklib
+  apt:
+    name: libpam-cracklib
+    state: present
+
+- name: PAM | Configure pam.d/common-password
+  template:
+    src: etc_pam.d_common-password
+    dest: /etc/pam.d/common-password
+    owner: root
+    mode: 0644

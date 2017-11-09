@@ -1,0 +1,29 @@
+---
+- name: Knockd | Ensure knockd and monit is installed
+  apt:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - knockd
+    - monit
+
+- name: Knockd | Copy config fot monit
+  copy:
+    src: knockd.conf
+    dest: /etc/monit/conf.d/
+  notify:
+    - restart monit
+
+- name: Knockd | Configure knockd
+  template:
+    src: etc_knockd.j2
+    dest: /etc/knockd.conf
+  notify:
+    - restart knockd
+
+- name: Knockd | Enable Knockd
+  template:
+    src: etc_default_knock.j2
+    dest: /etc/default/knockd
+  notify:
+    - restart knockd

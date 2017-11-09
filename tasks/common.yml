@@ -1,0 +1,63 @@
+---
+- name: Security | Remove unnecessary users
+  user:
+    name: "{{ item }}"
+    state: absent
+  with_items: "{{ removable_users }}"
+
+- name: Security | Remove unnecessary groups
+  group:
+    name: "{{ item }}"
+    state: absent
+  with_items: "{{ removable_groups }}"
+
+- name: Security | Set a `nologin` shell for system users
+  user:
+    name: "{{ item }}"
+    shell: /usr/sbin/nologin
+  with_items: "{{ nologin_users }}"
+
+- name: Security | Secure the root user home directory
+  file:
+    dest: /root
+    state: directory
+    mode: 0700
+
+- name: Security | Check authorize_keys file exists
+  stat:
+    path: /root/.ssh/authorized_keys
+  register: authorized_keys
+
+- name: Security | Secure the root SSH directory
+  file:
+    dest: /root/.ssh
+    state: directory
+    mode: 0700
+
+- name: Security | Secure the root SSH authorized keys
+  file:
+    dest: /root/.ssh/authorized_keys
+    mode: 0400
+    owner: root
+    group: root
+  when: authorized_keys.stat.exists
+
+- name: Security | Mount shared memory as read only
+  mount:
+    name: /dev/shm
+    src: tmpfs
+    fstype: tmpfs
+    opts: defaults,nosuid,nodev,noexec
+    state: present
+
+- name: Security | Alter `host.conf` to aide in preventing IP spoofing
+  lineinfile:
+    dest: /etc/host.conf
+    regexp: "{{ item.regex }}"
+    line: "{{ item.line }}"
+    state: present
+  with_items:
+    - { regex: "^order",
+        line: "order bind,hosts" }
+    - { regex: "^nospoof",
+        line: "nospoof on" }

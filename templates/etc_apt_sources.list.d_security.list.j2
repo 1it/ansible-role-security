@@ -1,0 +1,9 @@
+{% if ansible_distribution == 'Debian' %}
+# Debian security updates
+deb     http://security.debian.org/  {{ ansible_distribution_release }}/updates main contrib non-free
+# deb-src http://security.debian.org/  {{ ansible_distribution_release }}/updates main contrib non-free
+{% endif %}
+{% if ansible_distribution == 'Ubuntu' %}
+deb http://security.ubuntu.com/ubuntu {{ ansible_distribution_release }}-security main restricted universe multiverse
+# deb-src http://security.ubuntu.com/ubuntu {{ ansible_distribution_release }}-security main restricted universe multiverse
+{% endif %}

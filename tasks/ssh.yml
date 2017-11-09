@@ -1,0 +1,24 @@
+---
+- name: SSH | Update the ssh security configuration (/etc/ssh/sshd_config)
+  template:
+    src: "{{ item }}"
+    dest: /etc/ssh/sshd_config
+    owner: root
+    group: root
+    mode: 0644
+    backup: yes
+  with_first_found:
+    - "sshd/{{ inventory_hostname }}_sshd_config"
+    - etc_ssh_sshd_config.j2
+  notify:
+    - restart ssh
+
+- name: SSH | Create the sftp rsyslog config
+  template:
+    src: etc_rsyslog.d_sftp.j2
+    dest: /etc/rsyslog.d/sftp.conf
+    owner: root
+    mode: 0755
+  when: sftp_users is not defined
+  notify:
+    - restart rsyslog

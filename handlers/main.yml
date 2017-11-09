@@ -1,0 +1,20 @@
+---
+- name: restart knockd
+  service:
+    name=knockd
+    state=restarted
+
+- name: restart monit
+  service:
+    name=monit
+    state=restarted
+
+- name: restart rsyslog
+  service:
+    name=rsyslog
+    state=restarted
+
+- name: restart ssh
+  service:
+    name=ssh
+    state=restarted

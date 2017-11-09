@@ -1,0 +1,50 @@
+---
+# Disable su and password policy hardening
+security_pam_restrictions: False
+
+# Knockd daemon default params
+knockd_sequence: '12345,56789,54321'
+knockd_timeout: '3600'
+
+# Kernel tcp stack hardening
+sysctl_params:
+    - { key: kernel.panic, value: 30 }
+    - { key: net.ipv4.conf.all.accept_redirects, value: 0 }
+    - { key: net.ipv6.conf.all.accept_redirects, value: 0 }
+    - { key: net.ipv4.tcp_syncookies, value: 1 }
+    - { key: net.ipv4.tcp_timestamps, value: 0 }
+    - { key: net.ipv4.conf.all.rp_filter, value: 1 }
+    - { key: net.ipv4.conf.default.rp_filter, value: 1 }
+    - { key: net.ipv4.tcp_max_syn_backlog, value: 1280 }
+    - { key: net.ipv4.tcp_synack_retries, value: 2 }
+    - { key: net.ipv4.tcp_syn_retries, value: 5 }
+    - { key: net.ipv4.tcp_keepalive_time, value: 60 }
+    - { key: net.ipv4.tcp_keepalive_intvl, value: 10 }
+    - { key: net.ipv4.tcp_keepalive_probes, value: 5 }
+    - { key: net.ipv4.icmp_echo_ignore_broadcasts, value: 1 }
+
+removable_users:
+  - games
+  - gnats
+  - irc
+  - list
+  - news
+  - proxy
+  - uucp
+removable_groups:
+  - games
+  - gnats
+  - irc
+  - list
+  - news
+  - proxy
+  - uucp
+nologin_users:
+  - bin
+  - daemon
+  - libuuid
+  - lp
+  - mail
+  - man
+  - nobody
+  - sys

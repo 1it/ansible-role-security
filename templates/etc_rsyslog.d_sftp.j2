@@ -1,0 +1,5 @@
+# {{ ansible_managed }}
+
+# log internal-sftp activity to sftp.log
+if $programname == 'internal-sftp' then /var/log/sftp.log
+& stop

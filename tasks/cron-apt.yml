@@ -1,0 +1,26 @@
+---
+- name: Cron-apt | Install cron-apt
+  apt:
+    name: cron-apt
+    state: present
+
+- name: Cron-apt | Copy cron-apt config files
+  copy:
+    src: "cron-apt/{{ item.path }}"
+    dest: "/etc/cron-apt/{{ item.dest }}"
+  with_items:
+    - { path: 'config', dest: 'config' }
+    - { path: 'action-security', dest: 'action.d/5-security' }
+    - { path: 'config-security', dest: 'config.d/5-security' }
+
+- name: Cron-apt | Copy apt security.list
+  template:
+    src: etc_apt_sources.list.d_security.list.j2
+    dest: /etc/apt/sources.list.d/security.list
+
+- name: Cron-apt | Copy cron-apt to cron.d
+  copy:
+    src: cron-apt/cron
+    dest: /etc/cron.d/cron-apt
+
+

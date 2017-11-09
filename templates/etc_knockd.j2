@@ -1,0 +1,10 @@
+[options]
+    logfile = /var/log/knockd.log
+
+[opencloseSSH]
+    sequence    = {{ knockd_sequence }}
+    seq_timeout = 5
+    start_command = /sbin/iptables -I INPUT 10 -s %IP% -p tcp -m multiport --dports 22,80,443 -j ACCEPT
+    tcpflags    = syn
+    cmd_timeout = {{ knockd_timeout }}
+    stop_command  = /sbin/iptables -D INPUT -s %IP% -p tcp -m multiport --dports 22,80,443 -j ACCEPT
