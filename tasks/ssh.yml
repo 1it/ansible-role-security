@@ -22,3 +22,13 @@
   when: sftp_users is not defined
   notify:
     - restart rsyslog
+
+- name: SSH | Ensure ssh server keys generated
+  command:
+    "ssh-keygen -A"
+    args:
+      creates: "{{ item }}"
+    with_items:
+      - "/etc/ssh/ssh_host_rsa_key"
+      - "/etc/ssh/ssh_host_ecdsa_key"
+      - "/etc/ssh/ssh_host_ed25519_key"
