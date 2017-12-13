@@ -61,3 +61,4 @@
         line: "order bind,hosts" }
     - { regex: "^nospoof",
         line: "nospoof on" }
+  when: ansible_distribution_release == 'jessie'
