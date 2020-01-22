@@ -7,7 +7,7 @@
 - include_tasks: sysctl.yml
   tags:
     - common
-    - system
+    - sysctl
 
 - include_tasks: pam.yml
   when: ansible_os_family == 'Debian' and security_pam_restrictions == True
