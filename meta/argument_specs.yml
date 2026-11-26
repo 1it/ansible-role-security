@@ -1,0 +1,454 @@
+---
+argument_specs:
+  main:
+    short_description: Production Linux security hardening role
+    description:
+      - Hardens Linux hosts across Debian 12/13, Ubuntu 24.04/26.04, and EL 8/9/10.
+      - Manages system account/directory permissions, resource/core limits, sysctl drop-ins, OpenSSH drop-ins, optional PAM pwquality/su restrictions, optional automatic security updates, and optional knockd.
+    options:
+      security_apt_cache_valid_time:
+        type: int
+        default: 3600
+        description: APT cache validity duration in seconds.
+
+      security_root_home_mode:
+        type: str
+        default: "0700"
+        description: Octal permission mode for /root.
+      security_root_ssh_dir_mode:
+        type: str
+        default: "0700"
+        description: Octal permission mode for /root/.ssh.
+      security_root_authorized_keys_mode:
+        type: str
+        default: "0600"
+        description: Octal permission mode for /root/.ssh/authorized_keys when present.
+      security_nologin_shell:
+        type: str
+        default: ""
+        description: Explicit nologin shell path (empty uses OS default).
+      security_nologin_users:
+        type: list
+        elements: str
+        description: System users whose shell should be enforced as nologin if they exist.
+      security_nologin_extra_users:
+        type: list
+        elements: str
+        default: []
+        description: Additional system users to enforce nologin shell on if they exist.
+      security_remove_unused_users:
+        type: bool
+        default: false
+        description: Opt-in removal of users listed in security_removable_users and security_removable_extra_users.
+      security_removable_users:
+        type: list
+        elements: str
+        description: Default legacy users to remove when security_remove_unused_users is true.
+      security_removable_extra_users:
+        type: list
+        elements: str
+        default: []
+        description: Additional users to remove when security_remove_unused_users is true.
+      security_remove_unused_groups:
+        type: bool
+        default: false
+        description: Opt-in removal of groups listed in security_removable_groups and security_removable_extra_groups.
+      security_removable_groups:
+        type: list
+        elements: str
+        description: Default legacy groups to remove when security_remove_unused_groups is true.
+      security_removable_extra_groups:
+        type: list
+        elements: str
+        default: []
+        description: Additional groups to remove when security_remove_unused_groups is true.
+      security_harden_dev_shm:
+        type: bool
+        default: false
+        description: Opt-in hardening of /dev/shm mount options.
+      security_dev_shm_mount_opts:
+        type: str
+        default: "defaults,nosuid,nodev,noexec"
+        description: Mount options for /dev/shm when security_harden_dev_shm is true.
+      security_dev_shm_mount_state:
+        type: str
+        default: "mounted"
+        choices:
+          - present
+          - mounted
+        description: State passed to ansible.posix.mount for /dev/shm.
+      security_disable_core_dumps:
+        type: bool
+        default: true
+        description: Manage /etc/security/limits.d/99-security-coredump.conf to disable core dumps.
+      security_limits:
+        type: list
+        elements: dict
+        default: []
+        description: Base PAM limits entries for /etc/security/limits.d/99-security-limits.conf.
+        options:
+          domain:
+            type: str
+            required: true
+            description: User, group, or wildcard domain.
+          type:
+            type: str
+            required: true
+            choices:
+              - soft
+              - hard
+              - "-"
+            description: Limit type.
+          item:
+            type: str
+            required: true
+            description: Resource item (e.g. nofile, nproc, memlock).
+          value:
+            type: raw
+            required: true
+            description: Limit value (integer or unlimited).
+      security_extra_limits:
+        type: list
+        elements: dict
+        default: []
+        description: Additive PAM limits entries merged with security_limits.
+        options:
+          domain:
+            type: str
+            required: true
+            description: User, group, or wildcard domain.
+          type:
+            type: str
+            required: true
+            choices:
+              - soft
+              - hard
+              - "-"
+            description: Limit type.
+          item:
+            type: str
+            required: true
+            description: Resource item (e.g. nofile, nproc, memlock).
+          value:
+            type: raw
+            required: true
+            description: Limit value (integer or unlimited).
+
+      security_sysctl_enabled:
+        type: bool
+        default: true
+        description: Enable sysctl hardening drop-in management.
+      security_sysctl_reload:
+        type: bool
+        default: true
+        description: Apply sysctl settings via sysctl -e -p when the drop-in changes.
+      security_sysctl_file:
+        type: str
+        default: "/etc/sysctl.d/99-security.conf"
+        description: Destination path for the sysctl drop-in file.
+      security_sysctl_params:
+        type: dict
+        description: Base dictionary of kernel sysctl parameters.
+      security_sysctl_extra_params:
+        type: dict
+        default: {}
+        description: Additive dictionary of sysctl overrides (null value omits a base key).
+
+      security_ssh_enabled:
+        type: bool
+        default: true
+        description: Enable OpenSSH server hardening via /etc/ssh/sshd_config.d/.
+      security_ssh_manage_service:
+        type: bool
+        default: true
+        description: Manage ssh/sshd systemd service state and reload on changes.
+      security_ssh_port:
+        type: int
+        default: 22
+        description: SSH listening port.
+      security_ssh_listen_addresses:
+        type: list
+        elements: str
+        default: []
+        description: Optional explicit ListenAddress values.
+      security_ssh_permit_root_login:
+        type: str
+        default: "prohibit-password"
+        choices:
+          - "yes"
+          - "no"
+          - "prohibit-password"
+          - "forced-commands-only"
+        description: OpenSSH PermitRootLogin setting.
+      security_ssh_password_authentication:
+        type: bool
+        default: false
+        description: Enable or disable SSH password authentication.
+      security_ssh_permit_empty_passwords:
+        type: bool
+        default: false
+        description: Allow empty passwords over SSH.
+      security_ssh_kbd_interactive_authentication:
+        type: bool
+        default: false
+        description: Enable keyboard-interactive / challenge-response authentication.
+      security_ssh_pubkey_authentication:
+        type: bool
+        default: true
+        description: Enable public key authentication.
+      security_ssh_use_pam:
+        type: bool
+        default: true
+        description: Enable PAM integration in sshd.
+      security_ssh_x11_forwarding:
+        type: bool
+        default: false
+        description: Enable X11 forwarding.
+      security_ssh_allow_agent_forwarding:
+        type: bool
+        default: false
+        description: Enable SSH agent forwarding.
+      security_ssh_allow_tcp_forwarding:
+        type: str
+        default: "no"
+        choices:
+          - "yes"
+          - "no"
+          - "all"
+          - "local"
+          - "remote"
+        description: OpenSSH AllowTcpForwarding setting.
+      security_ssh_permit_tunnel:
+        type: bool
+        default: false
+        description: Allow tun device forwarding.
+      security_ssh_use_dns:
+        type: bool
+        default: false
+        description: Enable reverse DNS lookups on remote client IPs.
+      security_ssh_print_motd:
+        type: bool
+        default: false
+        description: Let sshd print /etc/motd on login.
+      security_ssh_syslog_facility:
+        type: str
+        default: "AUTHPRIV"
+        description: SyslogFacility for sshd.
+      security_ssh_log_level:
+        type: str
+        default: "VERBOSE"
+        description: LogLevel for sshd.
+      security_ssh_login_grace_time:
+        type: str
+        default: "60"
+        description: LoginGraceTime duration.
+      security_ssh_max_auth_tries:
+        type: int
+        default: 4
+        description: Maximum authentication attempts per connection.
+      security_ssh_max_sessions:
+        type: int
+        default: 10
+        description: Maximum multiplexed sessions per network connection.
+      security_ssh_max_startups:
+        type: str
+        default: "10:30:100"
+        description: Maximum concurrent unauthenticated connections (start:rate:full).
+      security_ssh_client_alive_interval:
+        type: int
+        default: 300
+        description: Timeout interval in seconds after which sshd sends an alive probe.
+      security_ssh_client_alive_count_max:
+        type: int
+        default: 2
+        description: Number of missed client alive messages before disconnecting.
+      security_ssh_allow_users:
+        type: list
+        elements: str
+        default: []
+        description: Optional AllowUsers list.
+      security_ssh_allow_groups:
+        type: list
+        elements: str
+        default: []
+        description: Optional AllowGroups list.
+      security_ssh_ciphers:
+        type: list
+        elements: str
+        default: []
+        description: Optional explicit list of SSH Ciphers (empty uses OS defaults/crypto-policies).
+      security_ssh_kex_algorithms:
+        type: list
+        elements: str
+        default: []
+        description: Optional explicit list of SSH KexAlgorithms.
+      security_ssh_macs:
+        type: list
+        elements: str
+        default: []
+        description: Optional explicit list of SSH MACs.
+      security_ssh_sftp_subsystem:
+        type: str
+        default: "internal-sftp -f AUTH -l INFO"
+        description: SFTP Subsystem directive value (empty omits directive).
+      security_ssh_extra_config:
+        type: dict
+        default: {}
+        description: Additional or overriding sshd_config key-value directives.
+      security_ssh_match_blocks:
+        type: list
+        elements: dict
+        default: []
+        description: Optional Match blocks placed in /etc/ssh/sshd_config.d/99-security-match.conf.
+        options:
+          condition:
+            type: str
+            required: true
+            description: Match criteria (e.g. "Group sftp-users").
+          options:
+            type: dict
+            required: true
+            description: Key-value sshd options inside the Match block.
+      security_ssh_sftp_rsyslog_enabled:
+        type: bool
+        default: false
+        description: Opt-in rsyslog + logrotate rule for internal-sftp logging.
+      security_ssh_sftp_log_path:
+        type: str
+        default: "/var/log/sftp.log"
+        description: Destination log file path for internal-sftp rsyslog rule.
+      security_ssh_sftp_logrotate_rotate:
+        type: int
+        default: 14
+        description: Number of rotated SFTP log files to keep.
+
+      security_pam_enabled:
+        type: bool
+        default: false
+        description: Opt-in PAM password quality and su restriction hardening.
+      security_pam_pwquality_params:
+        type: dict
+        description: Base pwquality.conf parameters for /etc/security/pwquality.conf.d/99-security.conf.
+      security_pam_pwquality_extra_params:
+        type: dict
+        default: {}
+        description: Additive overrides merged onto security_pam_pwquality_params.
+      security_pam_su_restrict_wheel:
+        type: bool
+        default: false
+        description: Restrict `su` via pam_wheel.so in /etc/pam.d/su.
+      security_pam_su_group:
+        type: str
+        default: ""
+        description: Group allowed to run `su` (empty uses sudo on Debian/Ubuntu, wheel on EL).
+
+      security_auto_updates_enabled:
+        type: bool
+        default: false
+        description: Opt-in automatic security updates (unattended-upgrades on Debian/Ubuntu, dnf-automatic on EL).
+      security_auto_updates_apply:
+        type: bool
+        default: true
+        description: Automatically install downloaded security updates (false = download only).
+      security_auto_updates_reboot:
+        type: bool
+        default: false
+        description: Automatically reboot host when required after security updates.
+      security_auto_updates_reboot_time:
+        type: str
+        default: "03:00"
+        description: Scheduled reboot time (HH:MM) for unattended-upgrades when reboot is enabled.
+      security_auto_updates_remove_unused:
+        type: bool
+        default: true
+        description: Remove unused dependencies and old kernels (Debian/Ubuntu unattended-upgrades).
+      security_auto_updates_mail_to:
+        type: str
+        default: ""
+        description: Optional notification email recipient (empty disables email notifications).
+      security_auto_updates_mail_from:
+        type: str
+        default: "root@localhost"
+        description: Sender email address for dnf-automatic email notifications.
+      security_auto_updates_mail_report:
+        type: str
+        default: "only-on-error"
+        choices:
+          - always
+          - on-change
+          - only-on-error
+        description: When unattended-upgrades sends notification emails.
+      security_auto_updates_random_sleep:
+        type: int
+        default: 3600
+        description: Random sleep delay in seconds for dnf-automatic.
+      security_auto_updates_blacklist:
+        type: list
+        elements: str
+        default: []
+        description: Base packages excluded from automatic upgrades.
+      security_auto_updates_extra_blacklist:
+        type: list
+        elements: str
+        default: []
+        description: Additional packages excluded from automatic upgrades.
+      security_auto_updates_apt_extra_config:
+        type: dict
+        default: {}
+        description: Additional Unattended-Upgrade::* key-value pairs for Debian/Ubuntu.
+      security_auto_updates_dnf_upgrade_type:
+        type: str
+        default: "security"
+        choices:
+          - default
+          - security
+        description: Upgrade type for dnf-automatic on EL systems.
+      security_auto_updates_dnf_extra_config:
+        type: dict
+        default: {}
+        description: Additional [base] section directives for /etc/dnf/automatic.conf.
+
+      security_knockd_enabled:
+        type: bool
+        default: false
+        description: Opt-in installation and configuration of knockd port-knocking daemon.
+      security_knockd_interface:
+        type: str
+        default: ""
+        description: Network interface for knockd (empty uses default IPv4 interface or eth0).
+      security_knockd_sequence:
+        type: str
+        default: ""
+        description: Comma-separated port knock sequence (required when security_knockd_enabled is true).
+      security_knockd_seq_timeout:
+        type: int
+        default: 5
+        description: Timeout in seconds to complete the knock sequence.
+      security_knockd_cmd_timeout:
+        type: int
+        default: 3600
+        description: Duration in seconds before stop_command runs.
+      security_knockd_tcpflags:
+        type: str
+        default: "syn"
+        description: TCP flags matched by knockd.
+      security_knockd_use_syslog:
+        type: bool
+        default: true
+        description: Log knockd activity via syslog/journald.
+      security_knockd_logfile:
+        type: str
+        default: ""
+        description: Optional file path for knockd logs when not relying solely on syslog.
+      security_knockd_start_command:
+        type: str
+        default: "/usr/sbin/iptables -I INPUT 1 -s %IP% -p tcp --dport 22 -j ACCEPT"
+        description: Command executed when knock sequence succeeds.
+      security_knockd_stop_command:
+        type: str
+        default: "/usr/sbin/iptables -D INPUT -s %IP% -p tcp --dport 22 -j ACCEPT"
+        description: Command executed after security_knockd_cmd_timeout expires.
+      security_knockd_extra_sections:
+        type: dict
+        default: {}
+        description: Additional knockd sections (section_name -> dict of key/value options).

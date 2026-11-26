@@ -1,0 +1,124 @@
+# Managed by Ansible (ansible-role-security)
+# OpenSSH server hardening drop-in (evaluated first via /etc/ssh/sshd_config.d/)
+{% set _extra_keys = security_ssh_extra_config.keys() | map('lower') | list %}
+{% set _kbd_directive = 'ChallengeResponseAuthentication' if (ansible_facts['os_family'] == 'RedHat' and (ansible_facts['distribution_major_version'] | int) < 9) else 'KbdInteractiveAuthentication' %}
+
+# Network
+{% if 'port' not in _extra_keys %}
+Port {{ security_ssh_port }}
+{% endif %}
+{% if 'listenaddress' not in _extra_keys %}
+{% for addr in security_ssh_listen_addresses %}
+ListenAddress {{ addr }}
+{% endfor %}
+{% endif %}
+
+# Logging
+{% if 'syslogfacility' not in _extra_keys %}
+SyslogFacility {{ security_ssh_syslog_facility }}
+{% endif %}
+{% if 'loglevel' not in _extra_keys %}
+LogLevel {{ security_ssh_log_level }}
+{% endif %}
+
+# Authentication
+{% if 'logingracetime' not in _extra_keys %}
+LoginGraceTime {{ security_ssh_login_grace_time }}
+{% endif %}
+{% if 'permitrootlogin' not in _extra_keys %}
+PermitRootLogin {{ security_ssh_permit_root_login }}
+{% endif %}
+{% if 'strictmodes' not in _extra_keys %}
+StrictModes yes
+{% endif %}
+{% if 'maxauthtries' not in _extra_keys %}
+MaxAuthTries {{ security_ssh_max_auth_tries }}
+{% endif %}
+{% if 'maxsessions' not in _extra_keys %}
+MaxSessions {{ security_ssh_max_sessions }}
+{% endif %}
+{% if 'maxstartups' not in _extra_keys %}
+MaxStartups {{ security_ssh_max_startups }}
+{% endif %}
+{% if 'pubkeyauthentication' not in _extra_keys %}
+PubkeyAuthentication {{ 'yes' if security_ssh_pubkey_authentication else 'no' }}
+{% endif %}
+{% if 'passwordauthentication' not in _extra_keys %}
+PasswordAuthentication {{ 'yes' if security_ssh_password_authentication else 'no' }}
+{% endif %}
+{% if 'permitemptypasswords' not in _extra_keys %}
+PermitEmptyPasswords {{ 'yes' if security_ssh_permit_empty_passwords else 'no' }}
+{% endif %}
+{% if _kbd_directive | lower not in _extra_keys %}
+{{ _kbd_directive }} {{ 'yes' if security_ssh_kbd_interactive_authentication else 'no' }}
+{% endif %}
+{% if 'hostbasedauthentication' not in _extra_keys %}
+HostbasedAuthentication no
+{% endif %}
+{% if 'ignorerhosts' not in _extra_keys %}
+IgnoreRhosts yes
+{% endif %}
+{% if 'usepam' not in _extra_keys %}
+UsePAM {{ 'yes' if security_ssh_use_pam else 'no' }}
+{% endif %}
+{% if security_ssh_allow_users | length > 0 and 'allowusers' not in _extra_keys %}
+AllowUsers {{ security_ssh_allow_users | join(' ') }}
+{% endif %}
+{% if security_ssh_allow_groups | length > 0 and 'allowgroups' not in _extra_keys %}
+AllowGroups {{ security_ssh_allow_groups | join(' ') }}
+{% endif %}
+
+# Forwarding & Session Hardening
+{% if 'x11forwarding' not in _extra_keys %}
+X11Forwarding {{ 'yes' if security_ssh_x11_forwarding else 'no' }}
+{% endif %}
+{% if 'allowagentforwarding' not in _extra_keys %}
+AllowAgentForwarding {{ 'yes' if security_ssh_allow_agent_forwarding else 'no' }}
+{% endif %}
+{% if 'allowtcpforwarding' not in _extra_keys %}
+AllowTcpForwarding {{ security_ssh_allow_tcp_forwarding }}
+{% endif %}
+{% if 'permittunnel' not in _extra_keys %}
+PermitTunnel {{ 'yes' if security_ssh_permit_tunnel else 'no' }}
+{% endif %}
+{% if 'permituserenvironment' not in _extra_keys %}
+PermitUserEnvironment no
+{% endif %}
+{% if 'usedns' not in _extra_keys %}
+UseDNS {{ 'yes' if security_ssh_use_dns else 'no' }}
+{% endif %}
+{% if 'printmotd' not in _extra_keys %}
+PrintMotd {{ 'yes' if security_ssh_print_motd else 'no' }}
+{% endif %}
+{% if 'clientaliveinterval' not in _extra_keys %}
+ClientAliveInterval {{ security_ssh_client_alive_interval }}
+{% endif %}
+{% if 'clientalivecountmax' not in _extra_keys %}
+ClientAliveCountMax {{ security_ssh_client_alive_count_max }}
+{% endif %}
+{% if security_ssh_ciphers | length > 0 and 'ciphers' not in _extra_keys %}
+Ciphers {{ security_ssh_ciphers | join(',') }}
+{% endif %}
+{% if security_ssh_kex_algorithms | length > 0 and 'kexalgorithms' not in _extra_keys %}
+KexAlgorithms {{ security_ssh_kex_algorithms | join(',') }}
+{% endif %}
+{% if security_ssh_macs | length > 0 and 'macs' not in _extra_keys %}
+MACs {{ security_ssh_macs | join(',') }}
+{% endif %}
+{% if security_ssh_extra_config | length > 0 %}
+
+# Extra Directives
+{% for key, value in security_ssh_extra_config | dictsort %}
+{% if value is sameas true %}
+{{ key }} yes
+{% elif value is sameas false %}
+{{ key }} no
+{% elif value is sequence and value is not string %}
+{% for item in value %}
+{{ key }} {{ item }}
+{% endfor %}
+{% elif value is not none %}
+{{ key }} {{ value }}
+{% endif %}
+{% endfor %}
+{% endif %}

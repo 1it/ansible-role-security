@@ -1,28 +1,41 @@
 ---
-- include_tasks: common.yml
+- name: Preflight | Validate platform and load OS variables
+  ansible.builtin.import_tasks: preflight.yml
   tags:
-    - system
+    - always
 
-- include_tasks: sysctl.yml
+- name: Sysctl | Configure kernel and network hardening
+  ansible.builtin.import_tasks: sysctl.yml
+  when: security_sysctl_enabled | bool
   tags:
     - sysctl
 
-- include_tasks: pam.yml
-  when: ansible_os_family == 'Debian' and security_pam_restrictions == True
-  tags:
-    - pam
-
-- include_tasks: knock.yml
-  when: ansible_os_family == 'Debian'
-  tags:
-    - knockd
-
-- include_tasks: ssh.yml
-  when: ansible_os_family == 'Debian'
+- name: SSH | Configure OpenSSH server hardening
+  ansible.builtin.import_tasks: ssh.yml
+  when: security_ssh_enabled | bool
   tags:
     - ssh
 
-- include_tasks: cron-apt.yml
-  when: ansible_os_family == 'Debian'
+- name: PAM | Configure password quality and su restrictions
+  ansible.builtin.import_tasks: pam.yml
+  when: security_pam_enabled | bool
   tags:
-    - cron-apt
+    - pam
+
+- name: Auto Updates | Configure unattended security updates
+  ansible.builtin.import_tasks: auto_updates.yml
+  when: security_auto_updates_enabled | bool
+  tags:
+    - auto_updates
+    - updates
+
+- name: Knockd | Configure port-knocking daemon
+  ansible.builtin.import_tasks: knockd.yml
+  when: security_knockd_enabled | bool
+  tags:
+    - knockd
+
+- name: System | Harden accounts, root directories, and limits
+  ansible.builtin.import_tasks: system.yml
+  tags:
+    - system

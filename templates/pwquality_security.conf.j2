@@ -1,0 +1,12 @@
+# Managed by Ansible (ansible-role-security)
+# PAM password quality rules (libpwquality drop-in)
+
+{% for key, value in _security_merged_pwquality | dictsort %}
+{% if value is sameas true %}
+{{ key }}
+{% elif value is sameas false or value is none %}
+{# omitted when false or null #}
+{% else %}
+{{ key }} = {{ value }}
+{% endif %}
+{% endfor %}

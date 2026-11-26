@@ -1,0 +1,27 @@
+# Managed by Ansible (ansible-role-security)
+
+[options]
+{% if security_knockd_use_syslog %}
+    UseSyslog
+{% endif %}
+{% if security_knockd_logfile | length > 0 %}
+    LogFile = {{ security_knockd_logfile }}
+{% endif %}
+{% if security_knockd_interface | length > 0 %}
+    Interface = {{ security_knockd_interface }}
+{% endif %}
+
+[opencloseSSH]
+    sequence      = {{ security_knockd_sequence }}
+    seq_timeout   = {{ security_knockd_seq_timeout }}
+    tcpflags      = {{ security_knockd_tcpflags }}
+    start_command = {{ security_knockd_start_command }}
+    cmd_timeout   = {{ security_knockd_cmd_timeout }}
+    stop_command  = {{ security_knockd_stop_command }}
+{% for section, opts in security_knockd_extra_sections | dictsort %}
+
+[{{ section }}]
+{% for key, value in opts | dictsort %}
+    {{ key }} = {{ value }}
+{% endfor %}
+{% endfor %}

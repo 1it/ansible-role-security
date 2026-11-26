@@ -1,33 +1,144 @@
 ---
-- name: SSH | Update the ssh security configuration (/etc/ssh/sshd_config)
-  template:
-    src: "{{ item }}"
-    dest: /etc/ssh/sshd_config
+- name: SSH | Ensure OpenSSH server package is installed (Debian)
+  ansible.builtin.apt:
+    name: "{{ _security_ssh_package }}"
+    state: present
+    update_cache: true
+    cache_valid_time: "{{ security_apt_cache_valid_time }}"
+  when: ansible_facts['os_family'] == 'Debian'
+
+- name: SSH | Ensure OpenSSH server package is installed (RedHat)
+  ansible.builtin.dnf:
+    name: "{{ _security_ssh_package }}"
+    state: present
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: SSH | Ensure privilege separation directory exists
+  ansible.builtin.file:
+    path: "{{ _security_ssh_privsep_dir }}"
+    state: directory
     owner: root
     group: root
-    mode: 0644
-    backup: yes
-  with_first_found:
-    - "sshd/{{ inventory_hostname }}_sshd_config"
-    - etc_ssh_sshd_config.j2
-  notify:
-    - restart ssh
+    mode: "0755"
+  when: _security_ssh_privsep_dir | length > 0
 
-- name: SSH | Create the sftp rsyslog config
-  template:
-    src: etc_rsyslog.d_sftp.j2
-    dest: /etc/rsyslog.d/sftp.conf
-    owner: root
-    mode: 0755
-  when: sftp_users is not defined
-  notify:
-    - restart rsyslog
-
-- name: SSH | Ensure ssh server keys generated
-  command: ssh-keygen -A
-  args:
+- name: SSH | Ensure SSH host keys exist
+  ansible.builtin.command:
+    cmd: /usr/bin/ssh-keygen -A
     creates: "{{ item }}"
-  with_items:
-    - "/etc/ssh/ssh_host_rsa_key"
-    - "/etc/ssh/ssh_host_ecdsa_key"
-    - "/etc/ssh/ssh_host_ed25519_key"
+  loop:
+    - /etc/ssh/ssh_host_rsa_key
+    - /etc/ssh/ssh_host_ecdsa_key
+    - /etc/ssh/ssh_host_ed25519_key
+
+- name: SSH | Ensure /etc/ssh/sshd_config.d directory exists
+  ansible.builtin.file:
+    path: /etc/ssh/sshd_config.d
+    state: directory
+    owner: root
+    group: root
+    mode: "{{ _security_ssh_config_dir_mode }}"
+
+- name: SSH | Ensure sshd_config includes drop-in directory
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^\s*Include\s+/etc/ssh/sshd_config\.d/\*\.conf'
+    line: "Include /etc/ssh/sshd_config.d/*.conf"
+    insertbefore: BOF
+    owner: root
+    group: root
+    mode: "{{ _security_ssh_config_file_mode }}"
+    validate: "/usr/sbin/sshd -t -f %s"
+  notify:
+    - Reload sshd
+
+- name: SSH | Configure SFTP subsystem in sshd_config
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^\s*#?\s*Subsystem\s+sftp\b'
+    line: "Subsystem sftp {{ security_ssh_sftp_subsystem }}"
+    owner: root
+    group: root
+    mode: "{{ _security_ssh_config_file_mode }}"
+    validate: "/usr/sbin/sshd -t -f %s"
+  when: security_ssh_sftp_subsystem | length > 0
+  notify:
+    - Reload sshd
+
+- name: SSH | Deploy OpenSSH hardening drop-in
+  ansible.builtin.template:
+    src: sshd_security.conf.j2
+    dest: /etc/ssh/sshd_config.d/00-security.conf
+    owner: root
+    group: root
+    mode: "0600"
+    validate: "/usr/sbin/sshd -t -f %s"
+  notify:
+    - Reload sshd
+
+- name: SSH | Deploy OpenSSH Match blocks drop-in
+  ansible.builtin.template:
+    src: sshd_match.conf.j2
+    dest: /etc/ssh/sshd_config.d/99-security-match.conf
+    owner: root
+    group: root
+    mode: "0600"
+    validate: "/usr/sbin/sshd -t -f %s"
+  when: security_ssh_match_blocks | length > 0
+  notify:
+    - Reload sshd
+
+- name: SSH | Remove unused OpenSSH Match blocks drop-in
+  ansible.builtin.file:
+    path: /etc/ssh/sshd_config.d/99-security-match.conf
+    state: absent
+  when: security_ssh_match_blocks | length == 0
+  notify:
+    - Reload sshd
+
+- name: SSH | Ensure rsyslog drop-in directory exists for SFTP logging
+  ansible.builtin.file:
+    path: /etc/rsyslog.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  when: security_ssh_sftp_rsyslog_enabled | bool
+
+- name: SSH | Deploy SFTP rsyslog configuration
+  ansible.builtin.template:
+    src: rsyslog_sftp.conf.j2
+    dest: /etc/rsyslog.d/30-sftp.conf
+    owner: root
+    group: root
+    mode: "0644"
+  when: security_ssh_sftp_rsyslog_enabled | bool
+  notify:
+    - Restart rsyslog
+
+- name: SSH | Ensure logrotate directory exists for SFTP log rotation
+  ansible.builtin.file:
+    path: /etc/logrotate.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  when: security_ssh_sftp_rsyslog_enabled | bool
+
+- name: SSH | Deploy SFTP logrotate configuration
+  ansible.builtin.template:
+    src: logrotate_sftp.j2
+    dest: /etc/logrotate.d/sftp
+    owner: root
+    group: root
+    mode: "0644"
+  when: security_ssh_sftp_rsyslog_enabled | bool
+
+- name: SSH | Ensure OpenSSH service is enabled and running
+  ansible.builtin.systemd:
+    name: "{{ _security_ssh_service }}"
+    enabled: true
+    state: started
+  when:
+    - security_ssh_manage_service | bool
+    - _security_systemd_running | bool

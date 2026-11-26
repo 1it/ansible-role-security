@@ -1,0 +1,30 @@
+# Managed by Ansible (ansible-role-security)
+
+[commands]
+upgrade_type = {{ security_auto_updates_dnf_upgrade_type }}
+random_sleep = {{ security_auto_updates_random_sleep }}
+network_online_timeout = 60
+download_updates = yes
+apply_updates = {{ 'yes' if security_auto_updates_apply else 'no' }}
+reboot = {{ 'when-needed' if security_auto_updates_reboot else 'never' }}
+
+[emitters]
+system_name = None
+emit_via = {{ 'email,stdio' if (security_auto_updates_mail_to | length > 0) else 'stdio' }}
+output_width = 80
+
+[email]
+email_from = {{ security_auto_updates_mail_from }}
+email_to = {{ security_auto_updates_mail_to if (security_auto_updates_mail_to | length > 0) else 'root' }}
+email_host = localhost
+
+[base]
+debuglevel = 1
+{% if _security_merged_blacklist | length > 0 %}
+exclude = {{ _security_merged_blacklist | join(' ') }}
+{% endif %}
+{% for key, value in security_auto_updates_dnf_extra_config | dictsort %}
+{% if value is not none %}
+{{ key }} = {{ value }}
+{% endif %}
+{% endfor %}

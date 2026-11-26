@@ -1,0 +1,120 @@
+---
+- name: System | Read local passwd database
+  ansible.builtin.getent:
+    database: passwd
+
+- name: System | Read local group database
+  ansible.builtin.getent:
+    database: group
+
+- name: System | Remove opt-in unused system users
+  ansible.builtin.user:
+    name: "{{ item }}"
+    state: absent
+  loop: "{{ (security_removable_users + security_removable_extra_users) | unique }}"
+  when:
+    - security_remove_unused_users | bool
+    - item in ansible_facts['getent_passwd']
+
+- name: System | Refresh passwd database after user removal
+  ansible.builtin.getent:
+    database: passwd
+  when: security_remove_unused_users | bool
+
+- name: System | Remove opt-in unused system groups
+  ansible.builtin.group:
+    name: "{{ item }}"
+    state: absent
+  loop: "{{ (security_removable_groups + security_removable_extra_groups) | unique }}"
+  vars:
+    _security_active_primary_gids: "{{ ansible_facts['getent_passwd'].values() | map(attribute=2) | list }}"
+  when:
+    - security_remove_unused_groups | bool
+    - item in ansible_facts['getent_group']
+    - ansible_facts['getent_group'][item][1] not in _security_active_primary_gids
+
+- name: System | Enforce nologin shell for existing system accounts
+  ansible.builtin.user:
+    name: "{{ item }}"
+    shell: "{{ security_nologin_shell if (security_nologin_shell | length > 0) else _security_default_nologin_shell }}"
+  loop: "{{ (security_nologin_users + security_nologin_extra_users) | unique }}"
+  when: item in ansible_facts['getent_passwd']
+
+- name: System | Secure root home directory permissions
+  ansible.builtin.file:
+    path: /root
+    state: directory
+    owner: root
+    group: root
+    mode: "{{ security_root_home_mode }}"
+
+- name: System | Ensure root SSH directory exists with strict permissions
+  ansible.builtin.file:
+    path: /root/.ssh
+    state: directory
+    owner: root
+    group: root
+    mode: "{{ security_root_ssh_dir_mode }}"
+
+- name: System | Check if root SSH authorized_keys exists
+  ansible.builtin.stat:
+    path: /root/.ssh/authorized_keys
+  register: _security_root_authorized_keys
+
+- name: System | Secure root SSH authorized_keys permissions
+  ansible.builtin.file:
+    path: /root/.ssh/authorized_keys
+    state: file
+    owner: root
+    group: root
+    mode: "{{ security_root_authorized_keys_mode }}"
+  when: _security_root_authorized_keys.stat.exists | bool
+
+- name: System | Harden /dev/shm mount options
+  ansible.posix.mount:
+    path: /dev/shm
+    src: tmpfs
+    fstype: tmpfs
+    opts: "{{ security_dev_shm_mount_opts }}"
+    state: "{{ security_dev_shm_mount_state }}"
+  when: security_harden_dev_shm | bool
+
+- name: System | Ensure /etc/security/limits.d directory exists
+  ansible.builtin.file:
+    path: /etc/security/limits.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: System | Deploy core dump restriction drop-in
+  ansible.builtin.template:
+    src: limits_coredump.conf.j2
+    dest: /etc/security/limits.d/99-security-coredump.conf
+    owner: root
+    group: root
+    mode: "0644"
+  when: security_disable_core_dumps | bool
+
+- name: System | Remove core dump restriction drop-in when disabled
+  ansible.builtin.file:
+    path: /etc/security/limits.d/99-security-coredump.conf
+    state: absent
+  when: not (security_disable_core_dumps | bool)
+
+- name: System | Deploy PAM resource limits drop-in
+  ansible.builtin.template:
+    src: limits_security.conf.j2
+    dest: /etc/security/limits.d/99-security-limits.conf
+    owner: root
+    group: root
+    mode: "0644"
+  vars:
+    _security_merged_limits: "{{ security_limits + security_extra_limits }}"
+  when: _security_merged_limits | length > 0
+
+- name: System | Remove PAM resource limits drop-in when empty
+  ansible.builtin.file:
+    path: /etc/security/limits.d/99-security-limits.conf
+    state: absent
+  when: (security_limits + security_extra_limits) | length == 0

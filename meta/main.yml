@@ -1,21 +1,33 @@
+---
 galaxy_info:
+  role_name: security
   author: Ivan Tuzhilkin
-  description: Ansible role to perform security hardening tasks
-  license: Apache License 2.0
-  min_ansible_version: '2.3.0'
+  description: Production Linux security hardening role (SSH, sysctl, accounts, limits, PAM, automatic updates, knockd)
+  license: Apache-2.0
+  min_ansible_version: "2.12"
 
   platforms:
-    - name: Ubuntu
-      versions:
-        - trusty
-        - xenial
     - name: Debian
       versions:
-        - jessie
-        - stretch
+        - bookworm
+        - trixie
+    - name: Ubuntu
+      versions:
+        - noble
+        - resolute
+    - name: EL
+      versions:
+        - "8"
+        - "9"
+        - "10"
 
   galaxy_tags:
     - system
     - security
+    - hardening
+    - ssh
+    - sysctl
+    - pam
+    - linux
 
 dependencies: []

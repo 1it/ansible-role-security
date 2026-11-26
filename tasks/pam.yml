@@ -1,12 +1,44 @@
 ---
-- name: PAM | Install libpam-cracklib
-  apt:
-    name: libpam-cracklib
+- name: PAM | Install pwquality package (Debian)
+  ansible.builtin.apt:
+    name: "{{ _security_pwquality_package }}"
     state: present
+    update_cache: true
+    cache_valid_time: "{{ security_apt_cache_valid_time }}"
+  when: ansible_facts['os_family'] == 'Debian'
 
-- name: PAM | Configure pam.d/common-password
-  template:
-    src: etc_pam.d_common-password
-    dest: /etc/pam.d/common-password
+- name: PAM | Install pwquality package (RedHat)
+  ansible.builtin.dnf:
+    name: "{{ _security_pwquality_package }}"
+    state: present
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: PAM | Ensure /etc/security/pwquality.conf.d directory exists
+  ansible.builtin.file:
+    path: /etc/security/pwquality.conf.d
+    state: directory
     owner: root
-    mode: 0644
+    group: root
+    mode: "0755"
+
+- name: PAM | Deploy pwquality configuration drop-in
+  ansible.builtin.template:
+    src: pwquality_security.conf.j2
+    dest: /etc/security/pwquality.conf.d/99-security.conf
+    owner: root
+    group: root
+    mode: "0644"
+  vars:
+    _security_merged_pwquality: "{{ security_pam_pwquality_params | combine(security_pam_pwquality_extra_params) }}"
+
+- name: PAM | Restrict su command to privileged group
+  ansible.builtin.lineinfile:
+    path: /etc/pam.d/su
+    regexp: '^#?\s*auth\s+required\s+pam_wheel\.so(?!.*\bdeny\b).*$'
+    line: "auth required pam_wheel.so use_uid group={{ _security_su_group }}"
+    owner: root
+    group: root
+    mode: "0644"
+  vars:
+    _security_su_group: "{{ security_pam_su_group if (security_pam_su_group | length > 0) else _security_default_su_group }}"
+  when: security_pam_su_restrict_wheel | bool
