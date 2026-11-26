@@ -1,0 +1,10 @@
+# Managed by Ansible (ansible-role-security)
+# Kernel and network security hardening parameters
+
+{% for key, value in _security_merged_sysctl | dictsort %}
+{% if value is not none %}
+{% if _security_ipv6_enabled or not key.startswith('net.ipv6.') %}
+{{ key }} = {{ value }}
+{% endif %}
+{% endif %}
+{% endfor %}

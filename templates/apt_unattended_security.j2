@@ -1,0 +1,29 @@
+// Managed by Ansible (ansible-role-security)
+// Drop-in overrides for unattended-upgrades (preserves distro 50unattended-upgrades origins)
+
+Unattended-Upgrade::Automatic-Reboot "{{ 'true' if security_auto_updates_reboot else 'false' }}";
+{% if security_auto_updates_reboot %}
+Unattended-Upgrade::Automatic-Reboot-Time "{{ security_auto_updates_reboot_time }}";
+{% endif %}
+Unattended-Upgrade::Remove-Unused-Kernel-Packages "{{ 'true' if security_auto_updates_remove_unused else 'false' }}";
+Unattended-Upgrade::Remove-Unused-Dependencies "{{ 'true' if security_auto_updates_remove_unused else 'false' }}";
+{% if security_auto_updates_mail_to | length > 0 %}
+Unattended-Upgrade::Mail "{{ security_auto_updates_mail_to }}";
+Unattended-Upgrade::MailReport "{{ security_auto_updates_mail_report }}";
+{% endif %}
+{% if _security_merged_blacklist | length > 0 %}
+Unattended-Upgrade::Package-Blacklist {
+{% for pkg in _security_merged_blacklist %}
+    "{{ pkg }}";
+{% endfor %}
+};
+{% endif %}
+{% for key, value in security_auto_updates_apt_extra_config | dictsort %}
+{% if value is sameas true %}
+{{ key }} "true";
+{% elif value is sameas false %}
+{{ key }} "false";
+{% elif value is not none %}
+{{ key }} "{{ value }}";
+{% endif %}
+{% endfor %}

@@ -1,0 +1,5 @@
+# Managed by Ansible (ansible-role-security)
+{% set _iface = security_knockd_interface if (security_knockd_interface | length > 0) else (ansible_facts.get('default_ipv4', {}).get('interface', 'eth0')) %}
+
+START_KNOCKD=1
+KNOCKD_OPTS="-i {{ _iface }}"

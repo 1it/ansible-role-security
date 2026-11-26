@@ -1,0 +1,5 @@
+# Managed by Ansible (ansible-role-security)
+# Route internal-sftp log messages to a dedicated log file
+
+if $programname == 'internal-sftp' then {{ security_ssh_sftp_log_path }}
+& stop

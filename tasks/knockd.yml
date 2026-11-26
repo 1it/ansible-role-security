@@ -1,0 +1,71 @@
+---
+- name: Knockd | Assert knock sequence is explicitly configured
+  ansible.builtin.assert:
+    that:
+      - security_knockd_sequence | trim | length > 0
+    fail_msg: "security_knockd_sequence must be set to a non-empty port sequence when security_knockd_enabled is true."
+    quiet: true
+
+- name: Knockd | Install knockd package (Debian)
+  ansible.builtin.apt:
+    name: knockd
+    state: present
+    update_cache: true
+    cache_valid_time: "{{ security_apt_cache_valid_time }}"
+  when: ansible_facts['os_family'] == 'Debian'
+
+- name: Knockd | Install knockd package (RedHat)
+  ansible.builtin.dnf:
+    name: knockd
+    state: present
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Knockd | Deploy knockd configuration
+  ansible.builtin.template:
+    src: knockd.conf.j2
+    dest: /etc/knockd.conf
+    owner: root
+    group: root
+    mode: "0600"
+  notify:
+    - Restart knockd
+
+- name: Knockd | Configure /etc/default/knockd (Debian)
+  ansible.builtin.template:
+    src: default_knockd.j2
+    dest: /etc/default/knockd
+    owner: root
+    group: root
+    mode: "0644"
+  when: ansible_facts['os_family'] == 'Debian'
+  notify:
+    - Restart knockd
+
+- name: Knockd | Ensure systemd override directory exists
+  ansible.builtin.file:
+    path: /etc/systemd/system/knockd.service.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Knockd | Deploy systemd restart override
+  ansible.builtin.template:
+    src: knockd_systemd_override.conf.j2
+    dest: /etc/systemd/system/knockd.service.d/override.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - Reload systemd
+    - Restart knockd
+
+- name: Knockd | Flush handlers before starting service
+  ansible.builtin.meta: flush_handlers
+
+- name: Knockd | Ensure knockd service is enabled and running
+  ansible.builtin.systemd:
+    name: knockd
+    enabled: true
+    state: started
+  when: _security_systemd_running | bool

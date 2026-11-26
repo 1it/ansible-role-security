@@ -1,8 +1,40 @@
 ---
-- name: Sysctl | Adjust kernel params
-  sysctl:
-    name: "{{ item.key }}"
-    value: "{{ item.value }}"
-    state: "{{ item.state | default('present')}}"
-  with_items:
-    - "{{ sysctl_params }}"
+- name: Sysctl | Ensure procps package is installed (Debian)
+  ansible.builtin.apt:
+    name: "{{ _security_procps_package }}"
+    state: present
+    update_cache: true
+    cache_valid_time: "{{ security_apt_cache_valid_time }}"
+  when: ansible_facts['os_family'] == 'Debian'
+
+- name: Sysctl | Ensure procps package is installed (RedHat)
+  ansible.builtin.dnf:
+    name: "{{ _security_procps_package }}"
+    state: present
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Sysctl | Check if IPv6 is enabled in kernel
+  ansible.builtin.stat:
+    path: /proc/sys/net/ipv6
+  register: _security_ipv6_stat
+
+- name: Sysctl | Ensure /etc/sysctl.d directory exists
+  ansible.builtin.file:
+    path: "{{ security_sysctl_file | dirname }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Sysctl | Deploy kernel hardening sysctl drop-in
+  ansible.builtin.template:
+    src: sysctl_security.conf.j2
+    dest: "{{ security_sysctl_file }}"
+    owner: root
+    group: root
+    mode: "0644"
+  vars:
+    _security_ipv6_enabled: "{{ _security_ipv6_stat.stat.exists | bool }}"
+    _security_merged_sysctl: "{{ security_sysctl_params | combine(security_sysctl_extra_params) }}"
+  notify:
+    - Reload sysctl

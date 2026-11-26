@@ -1,0 +1,14 @@
+---
+_security_procps_package: procps
+_security_ssh_package: openssh-server
+_security_ssh_service: ssh
+_security_ssh_config_dir_mode: "0755"
+_security_ssh_config_file_mode: "0644"
+_security_ssh_privsep_dir: /run/sshd
+_security_pwquality_package: libpam-pwquality
+_security_default_su_group: sudo
+_security_default_nologin_shell: /usr/sbin/nologin
+_security_auto_updates_package: unattended-upgrades
+_security_auto_updates_timers:
+  - apt-daily.timer
+  - apt-daily-upgrade.timer

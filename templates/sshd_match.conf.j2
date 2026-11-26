@@ -1,0 +1,16 @@
+# Managed by Ansible (ansible-role-security)
+# OpenSSH Match blocks (placed last via 99- prefix to avoid scoping global directives)
+
+{% for block in security_ssh_match_blocks %}
+Match {{ block.condition }}
+{% for key, value in block.options | dictsort %}
+{% if value is sameas true %}
+    {{ key }} yes
+{% elif value is sameas false %}
+    {{ key }} no
+{% elif value is not none %}
+    {{ key }} {{ value }}
+{% endif %}
+{% endfor %}
+
+{% endfor %}

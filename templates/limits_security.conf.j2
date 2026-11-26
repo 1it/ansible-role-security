@@ -1,0 +1,6 @@
+# Managed by Ansible (ansible-role-security)
+# System PAM resource limits
+
+{% for entry in _security_merged_limits %}
+{{ entry.domain }} {{ entry.type }} {{ entry.item }} {{ entry.value }}
+{% endfor %}

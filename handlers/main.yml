@@ -1,20 +1,38 @@
 ---
-- name: restart knockd
-  service:
-    name=knockd
-    state=restarted
+- name: Reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: true
+  when: _security_systemd_running | default(false) | bool
 
-- name: restart monit
-  service:
-    name=monit
-    state=restarted
+- name: Reload sysctl
+  ansible.builtin.command:
+    cmd: "sysctl -e -p {{ security_sysctl_file }}"
+  changed_when: true
+  when: security_sysctl_reload | bool
 
-- name: restart rsyslog
-  service:
-    name=rsyslog
-    state=restarted
+- name: Validate full sshd configuration
+  ansible.builtin.command:
+    cmd: /usr/sbin/sshd -t
+  changed_when: false
+  listen: Reload sshd
 
-- name: restart ssh
-  service:
-    name=ssh
-    state=restarted
+- name: Reload sshd service
+  ansible.builtin.systemd:
+    name: "{{ _security_ssh_service }}"
+    state: reloaded
+  when:
+    - security_ssh_manage_service | bool
+    - _security_systemd_running | default(false) | bool
+  listen: Reload sshd
+
+- name: Restart rsyslog
+  ansible.builtin.systemd:
+    name: rsyslog
+    state: restarted
+  when: _security_systemd_running | default(false) | bool
+
+- name: Restart knockd
+  ansible.builtin.systemd:
+    name: knockd
+    state: restarted
+  when: _security_systemd_running | default(false) | bool

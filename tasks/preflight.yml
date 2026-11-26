@@ -1,0 +1,19 @@
+---
+- name: Preflight | Assert supported OS family
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['os_family'] in ['Debian', 'RedHat']
+    fail_msg: "Unsupported OS family '{{ ansible_facts['os_family'] }}'. Supported families: Debian, RedHat."
+    quiet: true
+
+- name: Preflight | Load OS-family variables
+  ansible.builtin.include_vars: "{{ ansible_facts['os_family'] }}.yml"
+
+- name: Preflight | Check if systemd is active as PID 1
+  ansible.builtin.stat:
+    path: /run/systemd/system
+  register: _security_systemd_stat
+
+- name: Preflight | Record systemd runtime availability
+  ansible.builtin.set_fact:
+    _security_systemd_running: "{{ _security_systemd_stat.stat.exists | bool }}"

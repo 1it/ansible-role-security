@@ -1,0 +1,13 @@
+---
+_security_procps_package: procps-ng
+_security_ssh_package: openssh-server
+_security_ssh_service: sshd
+_security_ssh_config_dir_mode: "0700"
+_security_ssh_config_file_mode: "0600"
+_security_ssh_privsep_dir: ""
+_security_pwquality_package: libpwquality
+_security_default_su_group: wheel
+_security_default_nologin_shell: "{{ '/sbin/nologin' if (ansible_facts['distribution_major_version'] | int <= 9) else '/usr/sbin/nologin' }}"
+_security_auto_updates_package: dnf-automatic
+_security_auto_updates_timers:
+  - dnf-automatic.timer

@@ -1,50 +1,220 @@
 ---
-# Disable su and password policy hardening
-security_pam_restrictions: False
+# ==============================================================================
+# General / Package Manager Settings
+# ==============================================================================
+security_apt_cache_valid_time: 3600
 
-# Knockd daemon default params
-knockd_sequence: '12345,56789,54321'
-knockd_timeout: '3600'
+# ==============================================================================
+# System, Accounts & Resource Limits (tasks/system.yml)
+# ==============================================================================
+security_root_home_mode: "0700"
+security_root_ssh_dir_mode: "0700"
+security_root_authorized_keys_mode: "0600"
 
-# Kernel tcp stack hardening
-sysctl_params:
-    - { key: kernel.panic, value: 30 }
-    - { key: net.ipv4.conf.all.accept_redirects, value: 0 }
-    - { key: net.ipv6.conf.all.accept_redirects, value: 0 }
-    - { key: net.ipv4.tcp_syncookies, value: 1 }
-    - { key: net.ipv4.tcp_timestamps, value: 0 }
-    - { key: net.ipv4.conf.all.rp_filter, value: 1 }
-    - { key: net.ipv4.conf.default.rp_filter, value: 1 }
-    - { key: net.ipv4.tcp_max_syn_backlog, value: 1280 }
-    - { key: net.ipv4.tcp_synack_retries, value: 2 }
-    - { key: net.ipv4.tcp_syn_retries, value: 5 }
-    - { key: net.ipv4.tcp_keepalive_time, value: 60 }
-    - { key: net.ipv4.tcp_keepalive_intvl, value: 10 }
-    - { key: net.ipv4.tcp_keepalive_probes, value: 5 }
-    - { key: net.ipv4.icmp_echo_ignore_broadcasts, value: 1 }
+# Override nologin shell path (empty = OS default: /usr/sbin/nologin or /sbin/nologin on EL <=9)
+security_nologin_shell: ""
 
-removable_users:
-  - games
-  - gnats
-  - irc
-  - list
-  - news
-  - proxy
-  - uucp
-removable_groups:
-  - games
-  - gnats
-  - irc
-  - list
-  - news
-  - proxy
-  - uucp
-nologin_users:
+# Existing system accounts that should have a nologin shell (non-existent users are skipped)
+security_nologin_users:
   - bin
   - daemon
-  - libuuid
   - lp
   - mail
   - man
   - nobody
   - sys
+security_nologin_extra_users: []
+
+# Opt-in removal of legacy unused system accounts/groups (destructive; disabled by default)
+security_remove_unused_users: false
+security_removable_users:
+  - games
+  - gnats
+  - irc
+  - list
+  - news
+  - proxy
+  - uucp
+security_removable_extra_users: []
+
+security_remove_unused_groups: false
+security_removable_groups:
+  - games
+  - gnats
+  - irc
+  - list
+  - news
+  - proxy
+  - uucp
+security_removable_extra_groups: []
+
+# Opt-in /dev/shm mount hardening (may affect workloads requiring executable shared memory)
+security_harden_dev_shm: false
+security_dev_shm_mount_opts: "defaults,nosuid,nodev,noexec"
+security_dev_shm_mount_state: "mounted"
+
+# Core dump restrictions (/etc/security/limits.d/99-security-coredump.conf)
+security_disable_core_dumps: true
+
+# Optional PAM resource limits (/etc/security/limits.d/99-security-limits.conf)
+# Example entry: { domain: "*", type: "soft", item: "nofile", value: 65536 }
+security_limits: []
+security_extra_limits: []
+
+# ==============================================================================
+# Kernel & Network Hardening via Sysctl (tasks/sysctl.yml)
+# ==============================================================================
+security_sysctl_enabled: true
+security_sysctl_reload: true
+security_sysctl_file: "/etc/sysctl.d/99-security.conf"
+
+# Production-safe kernel & network hardening parameters (TCP timestamps intentionally left enabled for PAWS/high-load)
+security_sysctl_params:
+  kernel.panic: 30
+  kernel.kptr_restrict: 1
+  kernel.dmesg_restrict: 1
+  kernel.yama.ptrace_scope: 1
+  fs.suid_dumpable: 0
+  fs.protected_hardlinks: 1
+  fs.protected_symlinks: 1
+  fs.protected_fifos: 2
+  fs.protected_regular: 2
+  net.core.somaxconn: 4096
+  net.ipv4.conf.all.accept_redirects: 0
+  net.ipv4.conf.default.accept_redirects: 0
+  net.ipv4.conf.all.secure_redirects: 0
+  net.ipv4.conf.default.secure_redirects: 0
+  net.ipv4.conf.all.send_redirects: 0
+  net.ipv4.conf.default.send_redirects: 0
+  net.ipv4.conf.all.accept_source_route: 0
+  net.ipv4.conf.default.accept_source_route: 0
+  net.ipv4.conf.all.rp_filter: 1
+  net.ipv4.conf.default.rp_filter: 1
+  net.ipv4.icmp_echo_ignore_broadcasts: 1
+  net.ipv4.icmp_ignore_bogus_error_responses: 1
+  net.ipv4.tcp_syncookies: 1
+  net.ipv4.tcp_rfc1337: 1
+  net.ipv4.tcp_max_syn_backlog: 4096
+  net.ipv4.tcp_synack_retries: 2
+  net.ipv4.tcp_syn_retries: 5
+  net.ipv4.tcp_keepalive_time: 600
+  net.ipv4.tcp_keepalive_intvl: 60
+  net.ipv4.tcp_keepalive_probes: 5
+  net.ipv6.conf.all.accept_redirects: 0
+  net.ipv6.conf.default.accept_redirects: 0
+  net.ipv6.conf.all.accept_source_route: 0
+  net.ipv6.conf.default.accept_source_route: 0
+
+# Additive overrides merged onto security_sysctl_params (set value to null to omit a default key)
+security_sysctl_extra_params: {}
+
+# ==============================================================================
+# OpenSSH Server Hardening (tasks/ssh.yml)
+# ==============================================================================
+security_ssh_enabled: true
+security_ssh_manage_service: true
+security_ssh_port: 22
+security_ssh_listen_addresses: []
+security_ssh_permit_root_login: "prohibit-password"
+security_ssh_password_authentication: false
+security_ssh_permit_empty_passwords: false
+security_ssh_kbd_interactive_authentication: false
+security_ssh_pubkey_authentication: true
+security_ssh_use_pam: true
+security_ssh_x11_forwarding: false
+security_ssh_allow_agent_forwarding: false
+security_ssh_allow_tcp_forwarding: "no"
+security_ssh_permit_tunnel: false
+security_ssh_use_dns: false
+security_ssh_print_motd: false
+security_ssh_syslog_facility: "AUTHPRIV"
+security_ssh_log_level: "VERBOSE"
+security_ssh_login_grace_time: "60"
+security_ssh_max_auth_tries: 4
+security_ssh_max_sessions: 10
+security_ssh_max_startups: "10:30:100"
+security_ssh_client_alive_interval: 300
+security_ssh_client_alive_count_max: 2
+security_ssh_allow_users: []
+security_ssh_allow_groups: []
+
+# Leave empty to defer to OS crypto-policies (EL) / OpenSSH 9+ modern defaults (Debian/Ubuntu)
+security_ssh_ciphers: []
+security_ssh_kex_algorithms: []
+security_ssh_macs: []
+
+# SFTP subsystem (set empty string to leave distro default untouched)
+security_ssh_sftp_subsystem: "internal-sftp -f AUTH -l INFO"
+
+# Extra sshd_config directives merged/overriding base settings (key: value)
+security_ssh_extra_config: {}
+
+# Optional Match blocks written to /etc/ssh/sshd_config.d/99-security-match.conf
+# Example:
+#   - condition: "Group sftp-users"
+#     options:
+#       ChrootDirectory: "%h"
+#       ForceCommand: "internal-sftp -f AUTH -l INFO"
+#       AllowTcpForwarding: "no"
+#       X11Forwarding: "no"
+security_ssh_match_blocks: []
+
+# Opt-in rsyslog + logrotate SFTP logging (most modern servers use systemd-journald)
+security_ssh_sftp_rsyslog_enabled: false
+security_ssh_sftp_log_path: "/var/log/sftp.log"
+security_ssh_sftp_logrotate_rotate: 14
+
+# ==============================================================================
+# PAM Password Quality & su Restrictions (tasks/pam.yml)
+# ==============================================================================
+security_pam_enabled: false
+security_pam_pwquality_params:
+  minlen: 12
+  difok: 3
+  dcredit: -1
+  ucredit: -1
+  lcredit: -1
+  ocredit: -1
+  minclass: 3
+  maxrepeat: 3
+  enforce_for_root: true
+security_pam_pwquality_extra_params: {}
+
+# Opt-in restriction of `su` to members of sudo (Debian/Ubuntu) or wheel (EL)
+security_pam_su_restrict_wheel: false
+security_pam_su_group: ""
+
+# ==============================================================================
+# Automatic Security Updates (tasks/auto_updates.yml)
+# ==============================================================================
+# Opt-in: uses unattended-upgrades on Debian/Ubuntu and dnf-automatic on EL 8/9/10
+security_auto_updates_enabled: false
+security_auto_updates_apply: true
+security_auto_updates_reboot: false
+security_auto_updates_reboot_time: "03:00"
+security_auto_updates_remove_unused: true
+security_auto_updates_mail_to: ""
+security_auto_updates_mail_from: "root@localhost"
+security_auto_updates_mail_report: "only-on-error"
+security_auto_updates_random_sleep: 3600
+security_auto_updates_blacklist: []
+security_auto_updates_extra_blacklist: []
+security_auto_updates_apt_extra_config: {}
+security_auto_updates_dnf_upgrade_type: "security"
+security_auto_updates_dnf_extra_config: {}
+
+# ==============================================================================
+# Port Knocking via knockd (tasks/knockd.yml)
+# ==============================================================================
+# Opt-in: requires an explicit non-empty security_knockd_sequence when enabled
+security_knockd_enabled: false
+security_knockd_interface: ""
+security_knockd_sequence: ""
+security_knockd_seq_timeout: 5
+security_knockd_cmd_timeout: 3600
+security_knockd_tcpflags: "syn"
+security_knockd_use_syslog: true
+security_knockd_logfile: ""
+security_knockd_start_command: "/usr/sbin/iptables -I INPUT 1 -s %IP% -p tcp --dport 22 -j ACCEPT"
+security_knockd_stop_command: "/usr/sbin/iptables -D INPUT -s %IP% -p tcp --dport 22 -j ACCEPT"
+security_knockd_extra_sections: {}

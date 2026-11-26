@@ -1,0 +1,53 @@
+---
+- name: Auto Updates | Install unattended-upgrades (Debian)
+  ansible.builtin.apt:
+    name: "{{ _security_auto_updates_package }}"
+    state: present
+    update_cache: true
+    cache_valid_time: "{{ security_apt_cache_valid_time }}"
+  when: ansible_facts['os_family'] == 'Debian'
+
+- name: Auto Updates | Configure APT periodic schedule (Debian)
+  ansible.builtin.template:
+    src: apt_auto_upgrades.j2
+    dest: /etc/apt/apt.conf.d/20auto-upgrades
+    owner: root
+    group: root
+    mode: "0644"
+  when: ansible_facts['os_family'] == 'Debian'
+
+- name: Auto Updates | Configure unattended-upgrades security drop-in (Debian)
+  ansible.builtin.template:
+    src: apt_unattended_security.j2
+    dest: /etc/apt/apt.conf.d/52unattended-upgrades-security
+    owner: root
+    group: root
+    mode: "0644"
+  vars:
+    _security_merged_blacklist: "{{ (security_auto_updates_blacklist + security_auto_updates_extra_blacklist) | unique }}"
+  when: ansible_facts['os_family'] == 'Debian'
+
+- name: Auto Updates | Install dnf-automatic (RedHat)
+  ansible.builtin.dnf:
+    name: "{{ _security_auto_updates_package }}"
+    state: present
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Auto Updates | Configure dnf-automatic (RedHat)
+  ansible.builtin.template:
+    src: dnf_automatic.conf.j2
+    dest: /etc/dnf/automatic.conf
+    owner: root
+    group: root
+    mode: "0644"
+  vars:
+    _security_merged_blacklist: "{{ (security_auto_updates_blacklist + security_auto_updates_extra_blacklist) | unique }}"
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Auto Updates | Enable and start automatic update timers
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    enabled: true
+    state: started
+  loop: "{{ _security_auto_updates_timers }}"
+  when: _security_systemd_running | bool
